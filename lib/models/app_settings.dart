@@ -2,27 +2,6 @@ import 'package:flutter/material.dart';
 
 enum GameMode { simple, timed }
 
-class AppSettings extends ChangeNotifier {
-  bool soundOn = true;
-  bool vibrationOn = true;
-  GameMode gameMode = GameMode.simple;
-
-  void toggleSound() {
-    soundOn = !soundOn;
-    notifyListeners();
-  }
-
-  void toggleVibration() {
-    vibrationOn = !vibrationOn;
-    notifyListeners();
-  }
-
-  void toggleGameMode() {
-    gameMode = gameMode == GameMode.simple ? GameMode.timed : GameMode.simple;
-    notifyListeners();
-  }
-}
-
 enum AppTheme {
   defaultTheme,
   theme1,
@@ -55,5 +34,35 @@ extension AppThemeExtension on AppTheme {
       default:
         return "Default";
     }
+  }
+}
+
+class AppSettings extends ChangeNotifier {
+  bool soundOn = true;
+  bool vibrationOn = true;
+  GameMode gameMode = GameMode.simple;
+
+  AppTheme _currentTheme = AppTheme.defaultTheme;
+
+  AppTheme get currentTheme => _currentTheme;
+
+  void setTheme(AppTheme theme) {
+    _currentTheme = theme;
+    notifyListeners();
+  }
+
+  void toggleSound() {
+    soundOn = !soundOn;
+    notifyListeners();
+  }
+
+  void toggleVibration() {
+    vibrationOn = !vibrationOn;
+    notifyListeners();
+  }
+
+  void toggleGameMode() {
+    gameMode = gameMode == GameMode.simple ? GameMode.timed : GameMode.simple;
+    notifyListeners();
   }
 }

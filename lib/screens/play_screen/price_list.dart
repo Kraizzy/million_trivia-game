@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:millionaire_trivia/data/price_data.dart';
 
 class PriceList extends StatefulWidget {
   const PriceList({super.key});
@@ -37,7 +38,7 @@ class _PriceListState extends State<PriceList> with TickerProviderStateMixin {
 
     for (int i = 0; i < prices.length; i++) {
       final controller = AnimationController(
-        duration: const Duration(milliseconds: 25000),
+        duration: const Duration(milliseconds: 1000),
         vsync: this,
       );
 

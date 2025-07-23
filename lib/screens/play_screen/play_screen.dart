@@ -1,400 +1,360 @@
 import 'package:flutter/material.dart';
-import 'package:millionaire_trivia/screens/play_screen/congratulation_screen.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:millionaire_trivia/models/question_model.dart';
+//import 'package:millionaire_trivia/screens/play_screen/congratulation_screen.dart';
 import 'package:millionaire_trivia/screens/play_screen/price_list.dart';
+import 'package:millionaire_trivia/screens/ready_screen/ready_screen.dart';
 import 'package:millionaire_trivia/screens/replay_screen/failed_modal.dart';
+import 'package:millionaire_trivia/data/questions_loader.dart';
+import 'package:millionaire_trivia/widgets/question_card.dart';
+import 'package:millionaire_trivia/widgets/option_tile.dart';
+import 'package:millionaire_trivia/data/price_data.dart';
+import 'package:millionaire_trivia/widgets/lifelines/lifeline_button.dart';
+import 'package:millionaire_trivia/widgets/lifelines/lifeline_overlay.dart';
+import 'package:millionaire_trivia/widgets/lifelines/lifeline_manager.dart';
+import 'package:millionaire_trivia/widgets/lifelines/lifeline_usage_tracker.dart';
+
 import 'game_exit_modal.dart';
 
 class PlayScreen extends StatefulWidget {
-   const PlayScreen({super.key});
+  const PlayScreen({super.key});
 
   @override
   State<PlayScreen> createState() => _PlayScreenState();
 }
 
 class _PlayScreenState extends State<PlayScreen> {
-  void _showExitModal(BuildContext context) {
-  showGeneralDialog(
-    context: context,
-    barrierDismissible: true,
-    barrierLabel: 'Exit Modal',
-    transitionDuration: Duration(milliseconds: 300),
-    pageBuilder: (_, __, ___) => GameExitModal(
-      onContinue: () {
-        Navigator.pop(context); // close the modal
-        // Handle continue logic here
-      },
-      onShare: () {
-        Navigator.pop(context);
-        // Handle share logic here
-      },
-      onExit: () {
-        Navigator.pop(context);
-        // Handle exit game logic here
-      },
-    ),
-    transitionBuilder: (_, animation, __, child) {
-      return Transform.scale(
-        scale: animation.value,
-        child: Opacity(
-          opacity: animation.value,
-          child: child,
-        ),
+  late final AudioPlayer _bgAudioPlayer;
+  late final AudioPlayer _successPlayer;
+  late final AudioPlayer _failurePlayer;
+
+  List<Question> questions = [];
+  int currentStage = 1;
+  int currentIndex = 0;
+  bool answered = false;
+  String? selectedAnswer;
+
+  late LifelineManager lifelineManager;
+  late LifelineUsageTracker usageTracker;
+
+  @override
+  void initState() {
+    super.initState();
+    _bgAudioPlayer = AudioPlayer();
+    _successPlayer = AudioPlayer();
+    _failurePlayer = AudioPlayer();
+    usageTracker = LifelineUsageTracker();
+    preloadSounds();
+    loadStageQuestions(isNewGame: true); // ← Initialize as new game
+  }
+
+  Future<void> preloadSounds() async {
+    try {
+      await _bgAudioPlayer.setReleaseMode(ReleaseMode.loop);
+      await _bgAudioPlayer.setSource(
+        AssetSource('sounds/background_sound.mp3'),
       );
-    },
-  );
-}
-  void _showFailedModal(BuildContext context) {
-  showGeneralDialog(
-    context: context,
-    barrierDismissible: true,
-    barrierLabel: 'Exit Modal',
-    transitionDuration: Duration(milliseconds: 300),
-    pageBuilder: (_, __, ___) => FailedModal(
-      onContinue: () {
-        Navigator.pop(context); // close the modal
-        // Handle continue logic here
+      await _bgAudioPlayer.resume();
+
+      await _successPlayer.setSource(AssetSource('sounds/success_sound.wav'));
+      await _successPlayer.setReleaseMode(ReleaseMode.stop);
+
+      await _failurePlayer.setSource(AssetSource('sounds/failure_sound2.wav'));
+      await _failurePlayer.setReleaseMode(ReleaseMode.stop);
+    } catch (e) {
+      debugPrint('❌ Sound preload error: $e');
+    }
+  }
+
+  Future<void> playSuccessSound() async {
+    try {
+      await _successPlayer.stop();
+      await _successPlayer.resume();
+    } catch (e) {
+      debugPrint('❌ Failed to play success sound: $e');
+    }
+  }
+
+  Future<void> playFailureSound() async {
+    try {
+      await _failurePlayer.stop();
+      await _failurePlayer.resume();
+    } catch (e) {
+      debugPrint('❌ Failed to play failure sound: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _bgAudioPlayer.dispose();
+    _successPlayer.dispose();
+    _failurePlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> loadStageQuestions({bool isNewGame = false}) async {
+    final stageQuestions = await QuestionsLoader.loadStageQuestions(
+      currentStage,
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      questions = stageQuestions;
+      currentIndex = 0;
+      answered = false;
+      selectedAnswer = null;
+
+      if (isNewGame || currentStage == 1) {
+        usageTracker.reset(); // ✅ reset all lifeline usage
+      }
+
+      lifelineManager = LifelineManager(questions[0], usageTracker);
+    });
+  }
+
+  void nextQuestion() {
+    setState(() {
+      currentIndex++;
+      answered = false;
+      selectedAnswer = null;
+      lifelineManager = LifelineManager(questions[currentIndex], usageTracker);
+    });
+  }
+
+  void _showExitModal() {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Exit Modal',
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (_, __, ___) => GameExitModal(
+        onContinue: () => Navigator.pop(context),
+        onShare: () => Navigator.pop(context),
+        onExit: () => Navigator.pop(context),
+      ),
+      transitionBuilder: (_, animation, __, child) {
+        return Transform.scale(
+          scale: animation.value,
+          child: Opacity(opacity: animation.value, child: child),
+        );
       },
-      onGiveup: () {
-        Navigator.pop(context);
-        // Handle exit game logic here
-      },
-    ),
-    transitionBuilder: (_, animation, __, child) {
-      return Transform.scale(
-        scale: animation.value,
-        child: Opacity(
-          opacity: animation.value,
-          child: child,
+    );
+  }
+
+  void _showFailedModal() {
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      showGeneralDialog(
+        context: context,
+        barrierDismissible: true,
+        barrierLabel: 'Failed Modal',
+        transitionDuration: const Duration(milliseconds: 300),
+        pageBuilder: (_, __, ___) => FailedModal(
+          onContinue: () {
+            Navigator.pop(context);
+            setState(() {
+              selectedAnswer = null;
+              answered = false;
+            });
+          },
+          onGiveup: () {
+            Navigator.pop(context);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const ReadyScreen()),
+            );
+          },
         ),
+        transitionBuilder: (_, animation, __, child) {
+          return Transform.scale(
+            scale: animation.value,
+            child: Opacity(opacity: animation.value, child: child),
+          );
+        },
       );
-    },
-  );
-}
+    });
+  }
+
+  void checkAnswer(String selected) {
+    if (answered) return;
+
+    setState(() {
+      selectedAnswer = selected.trim().toLowerCase();
+      answered = true;
+    });
+
+    Future.delayed(const Duration(milliseconds: 500), () async {
+      if (!mounted) return;
+
+      final correct = questions[currentIndex].correctAnswer;
+
+      if (selectedAnswer == correct) {
+        await playSuccessSound();
+        await Future.delayed(const Duration(milliseconds: 700));
+
+        if (!mounted) return;
+
+        if (currentIndex < questions.length - 1) {
+          nextQuestion();
+        } else {
+          setState(() {
+            currentStage++;
+          });
+          loadStageQuestions(); // Next stage, but don't reset lifelines
+        }
+      } else {
+        await _bgAudioPlayer.stop();
+        await playFailureSound();
+        _showFailedModal();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final double screenWidth = MediaQuery.of(context).size.width;
-    final double screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    if (questions.isEmpty) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final question = questions[currentIndex];
+
     return Scaffold(
       body: Container(
         width: screenWidth,
         height: screenHeight,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Color.fromARGB(255, 74, 1, 170),
-              Color.fromARGB(255, 39, 1, 82),
-            ],
+            colors: [Color(0xFF4A01AA), Color(0xFF270152)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(10.0),
+          padding: const EdgeInsets.all(12.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-          SizedBox(height: 60),
+              const SizedBox(height: 60),
               Row(
-                spacing: 20,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   GestureDetector(
-                    onTap: () => _showExitModal(context),
+                    onTap: _showExitModal,
                     child: Container(
                       height: 50,
                       width: 50,
                       decoration: BoxDecoration(
-                        color: const Color.fromARGB(100, 0, 0, 0),
+                        color: Colors.black45,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Icon(Icons.close, color: Colors.white, size: 30),
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 30,
+                      ),
                     ),
                   ),
-                  SizedBox(width: 20),
                   GestureDetector(
-                    onTap: (){
+                    onTap: () {
                       Navigator.push(
-                      context, 
-                      MaterialPageRoute(builder: (context) => PriceList()),
+                        context,
+                        MaterialPageRoute(builder: (_) => const PriceList()),
                       );
                     },
                     child: Container(
-                      height: 50,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 5,
+                        horizontal: 14,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color.fromARGB(100, 0, 0, 0),
+                        color: Colors.black45,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Center(
-                        child: Text(
-                          '\$100 000',
-                          style: TextStyle(
-                            color: const Color.fromARGB(178, 255, 255, 255),
-                            fontWeight: FontWeight.normal,
-                            fontSize: 14,
-                          ),
-                        ),
+                      child: const Text(
+                        '\$100 000',
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
                       ),
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.only(top: 20), // Make space above
-                child: Stack(
-                  alignment: Alignment.center,
-                  clipBehavior: Clip.none, // Allow overflow
-                  children: [
-                    // Question box
-                    Container(
-                      alignment: Alignment.center,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 10,
-                      ),
-                      height: screenHeight * 0.2,
-                      width: screenWidth * 0.9,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        'What is the name of the Flutter developer of Millionaire Trivia?',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: screenWidth * 0.045,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
 
-                    // Floating label
-                    Positioned(
-                      top: -20, // Float above
-                      child: Container(
-                        alignment: Alignment.center,
-                        height: screenHeight * 0.06,
-                        width: screenWidth * 0.7,
-                        decoration: BoxDecoration(
-                          color: const Color.fromARGB(255, 27, 1, 68),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '5/15',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              QuestionCard(
+                question: question.question,
+                questionNumber: '${currentIndex + 1}/15',
+                screenWidth: screenWidth,
+                screenHeight: screenHeight,
               ),
 
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
+
               Row(
-                mainAxisSize: MainAxisSize.max,
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  Container(
-                    height: 50,
-                    width: 50,
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(100, 0, 0, 0),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Icon(
-                      Icons.exposure_minus_2,
-                      color: Colors.white,
-                      size: 30,
-                    ),
+                  LifelineButton(
+                    icon: Icons.exposure_minus_2,
+                    used: lifelineManager.used['-2']!,
+                    onTap: () => setState(() => lifelineManager.useMinus2()),
                   ),
-                  Container(
-                    height: 50,
-                    width: 50,
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(100, 0, 0, 0),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Icon(
-                      Icons.question_mark_rounded,
-                      color: Colors.white,
-                      size: 30,
-                    ),
+                  LifelineButton(
+                    icon: Icons.question_answer_rounded,
+                    used: lifelineManager.used['ask']!,
+                    onTap: () =>
+                        setState(() => lifelineManager.useAskComputer()),
                   ),
-                  GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => CongratulationScreen()),
-                    ),
-                    child: Container(
-                      height: 50,
-                      width: 50,
-                      decoration: BoxDecoration(
-                        color: const Color.fromARGB(100, 0, 0, 0),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Icon(
-                        Icons.leaderboard_rounded,
-                        color: Colors.white,
-                        size: 30,
-                      ),
-                    ),
+                  LifelineButton(
+                    icon: Icons.poll_rounded,
+                    used: lifelineManager.used['poll']!,
+                    onTap: () => setState(() => lifelineManager.usePoll()),
                   ),
-                  GestureDetector(
-                    onTap: () => _showFailedModal(context),
-                    child: Container(
-                      height: 50,
-                      width: 50,
-                      decoration: BoxDecoration(
-                        color: const Color.fromARGB(100, 0, 0, 0),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Icon(
-                        Icons.restart_alt_rounded,
-                        color: Colors.white,
-                        size: 30,
-                      ),
-                    ),
+                  LifelineButton(
+                    icon: Icons.refresh,
+                    used: lifelineManager.used['reset']!,
+                    onTap: () {
+                      setState(() {
+                        lifelineManager.useResetQuestion();
+                      });
+                      loadStageQuestions(); // reload question list
+                    },
                   ),
                 ],
               ),
-              SizedBox(height: 15),
+
+              LifelineOverlay(
+                pollResults: lifelineManager.pollResults,
+                suggestedIndex: lifelineManager.suggestedOptionIndex,
+              ),
+
+              const SizedBox(height: 15),
 
               Column(
-                children: [
-                  Container(
-                    alignment: Alignment.centerLeft,
-                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    height: 50,
-                    width: screenWidth * 0.9,
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(133, 27, 1, 68),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-                      child: Container(
-                        alignment: Alignment.center,
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadiusGeometry.circular(20),
-                        ),
-                        child: Text(
-                          'A',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: screenWidth * 0.036,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  SizedBox(height: 10),
-                  Container(
-                    alignment: Alignment.centerLeft,
-                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    height: 50,
-                    width: screenWidth * 0.9,
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(133, 27, 1, 68),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-                      child: Container(
-                        alignment: Alignment.center,
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadiusGeometry.circular(20),
-                        ),
-                        child: Text(
-                          'B',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: screenWidth * 0.036,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  Container(
-                    alignment: Alignment.centerLeft,
-                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    height: 50,
-                    width: screenWidth * 0.9,
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(133, 27, 1, 68),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-                      child: Container(
-                        alignment: Alignment.center,
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadiusGeometry.circular(20),
-                        ),
-                        child: Text(
-                          'C',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: screenWidth * 0.036,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  Container(
-                    alignment: Alignment.centerLeft,
-                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    height: 50,
-                    width: screenWidth * 0.9,
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(133, 27, 1, 68),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-                      child: Container(
-                        alignment: Alignment.center,
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadiusGeometry.circular(20),
-                        ),
-                        child: Text(
-                          'D',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: screenWidth * 0.036,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                children: List.generate(4, (index) {
+                  final label = ['A', 'B', 'C', 'D'][index];
+                  final optionText = question.options[index];
+                  final isRemoved = lifelineManager.removedOptionIndices
+                      .contains(index);
+                  return OptionTile(
+                    label: label,
+                    text: optionText,
+                    screenWidth: screenWidth,
+                    onTap: () => checkAnswer(optionText),
+                    isSelected: selectedAnswer == optionText,
+                    isCorrect:
+                        optionText.toLowerCase().trim() ==
+                        question.correctAnswer,
+                    answered: answered,
+                    disabled: isRemoved,
+                  );
+                }),
               ),
-              Spacer(flex: 1),
+
+              const Spacer(),
             ],
           ),
         ),

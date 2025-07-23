@@ -71,22 +71,22 @@ class _ReadyScreenState extends State<ReadyScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            SizedBox(height: 70),
+            SizedBox(height: 90),
             Text(
               'Level 1',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 32,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.normal,
                 fontFamily: GoogleFonts.ultra().fontFamily,
               ),
             ),
-            SizedBox(height: 20),
+            SizedBox(height: 25),
             Text(
               '\$1,000,000',
-              style: TextStyle(color: Colors.orange, fontSize: 22),
+              style: TextStyle(color: Colors.orange, fontSize: 24, fontFamily: GoogleFonts.poppins().fontFamily),
             ),
-            SizedBox(height: 20),
+            SizedBox(height: 25),
             Text(
               'Get Ready!',
               style: TextStyle(
@@ -99,8 +99,8 @@ class _ReadyScreenState extends State<ReadyScreen> {
             SizedBox(height: 50),
             // Ready Screen Content
             Container(
-              width: screenWidth * 0.2,
-              height: screenHeight * 0.1,
+              width: screenWidth * 0.28,
+              height: screenHeight * 0.15,
               decoration: BoxDecoration(
                 color: const Color.fromARGB(40, 255, 255, 255),
                 borderRadius: BorderRadius.circular(20),
@@ -110,7 +110,7 @@ class _ReadyScreenState extends State<ReadyScreen> {
                   '$_countdown',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: screenHeight * 0.036,
+                    fontSize: screenHeight * 0.044,
                     fontWeight: FontWeight.bold,
                     fontFamily: GoogleFonts.fjallaOne().fontFamily,
                   ),
