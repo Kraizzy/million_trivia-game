@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:millionaire_trivia/screens/ready_screen/ready_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
-class CongratulationScreen extends StatefulWidget {
-  const CongratulationScreen({super.key});
 
-  @override
-  State<CongratulationScreen> createState() => _CongratulationScreenState();
-}
+class CongratulationScreen extends StatelessWidget {
+  final String userName;
+  final String amountWon;
 
-class _CongratulationScreenState extends State<CongratulationScreen> {
+  const CongratulationScreen({
+    super.key,
+    required this.userName,
+    required this.amountWon,
+  });
+
   @override
   Widget build(BuildContext context) {
-     final double screenWidth = MediaQuery.of(context).size.width;
+    final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
       body: SingleChildScrollView(
         child: Container(
@@ -21,7 +25,7 @@ class _CongratulationScreenState extends State<CongratulationScreen> {
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                 Color.fromARGB(255, 74, 1, 170),
+                Color.fromARGB(255, 74, 1, 170),
                 Color.fromARGB(255, 39, 1, 82),
               ],
               begin: Alignment.topCenter,
@@ -29,7 +33,6 @@ class _CongratulationScreenState extends State<CongratulationScreen> {
             ),
           ),
           child: Column(
-            
             children: [
               const SizedBox(height: 80),
               Text(
@@ -41,7 +44,6 @@ class _CongratulationScreenState extends State<CongratulationScreen> {
                 ),
               ),
               const SizedBox(height: 2),
-        
               Text(
                 "Stage Completed",
                 style: TextStyle(
@@ -61,7 +63,7 @@ class _CongratulationScreenState extends State<CongratulationScreen> {
               ),
               const SizedBox(height: 5),
               Text(
-                'User Name',
+                userName,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: screenHeight * 0.019,
@@ -79,7 +81,7 @@ class _CongratulationScreenState extends State<CongratulationScreen> {
               ),
               const SizedBox(height: 5),
               Text(
-                '\$1,000,000',
+                amountWon,
                 style: TextStyle(
                   color: Colors.orange[400],
                   fontSize: screenHeight * 0.03,
@@ -87,72 +89,75 @@ class _CongratulationScreenState extends State<CongratulationScreen> {
                 ),
               ),
               const SizedBox(height: 210),
-        
               GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => ReadyScreen()),
-                    );
-                  },
-                  child: Container(
-                    width: screenWidth * 0.8,
-                    alignment: Alignment.center,
-                    padding: EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 72, 196, 0),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          offset: const Offset(0, 5),
-                          blurRadius: 10,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => ReadyScreen()),
+                  );
+                },
+                child: Container(
+                  width: screenWidth * 0.8,
+                  alignment: Alignment.center,
+                  padding: EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: const Color.fromARGB(255, 72, 196, 0),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        offset: const Offset(0, 5),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        alignment: Alignment.center,
+                        width: 50,
+                        height: screenHeight * 0.065,
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          shape: BoxShape.circle,
                         ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          alignment: Alignment.center,
-                          width: 50,
-                          height: screenHeight * 0.065,
-                          decoration: BoxDecoration(
-                            color: Colors.transparent,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.sports_esports,
-                            color: Colors.white,
-                            size: 60,
-                          ),
+                        child: Icon(
+                          Icons.sports_esports,
+                          color: Colors.white,
+                          size: 60,
                         ),
-                        SizedBox(width: 25),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Play',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: screenHeight * 0.03,
-                              ),
+                      ),
+                      SizedBox(width: 25),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Play',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: screenHeight * 0.03,
                             ),
-                            Text(
-                              'Next Level',
-                              style: TextStyle(color: Colors.white, fontSize: screenHeight * 0.02, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            'Next Level',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: screenHeight * 0.02,
+                              fontWeight: FontWeight.bold,
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
+              ),
               const SizedBox(height: 20),
               GestureDetector(
                 onTap: () {
-                  // Handle learn digital skills action
+                  // TODO: Implement share action
                 },
                 child: Container(
                   padding: EdgeInsets.symmetric(vertical: 20, horizontal: 8),
@@ -165,26 +170,25 @@ class _CongratulationScreenState extends State<CongratulationScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                     Icon(
-                      Icons.share,
-                      color: Colors.white,
-                      size: 30,
-                    ),
-                    SizedBox(width: 10),
-                     Text(
-                      'Share Your Achievement',
-                      style: TextStyle(
+                      Icon(
+                        Icons.share,
                         color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: screenHeight * 0.018,
+                        size: 30,
                       ),
-                    ),
+                      SizedBox(width: 10),
+                      Text(
+                        'Share Your Achievement',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: screenHeight * 0.018,
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ),
-               
-            ]
+            ],
           ),
         ),
       ),

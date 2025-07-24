@@ -1,7 +1,8 @@
+// Import statements...
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:millionaire_trivia/models/question_model.dart';
-//import 'package:millionaire_trivia/screens/play_screen/congratulation_screen.dart';
+import 'package:millionaire_trivia/screens/play_screen/congratulation_screen.dart';
 import 'package:millionaire_trivia/screens/play_screen/price_list.dart';
 import 'package:millionaire_trivia/screens/ready_screen/ready_screen.dart';
 import 'package:millionaire_trivia/screens/replay_screen/failed_modal.dart';
@@ -13,7 +14,7 @@ import 'package:millionaire_trivia/widgets/lifelines/lifeline_button.dart';
 import 'package:millionaire_trivia/widgets/lifelines/lifeline_overlay.dart';
 import 'package:millionaire_trivia/widgets/lifelines/lifeline_manager.dart';
 import 'package:millionaire_trivia/widgets/lifelines/lifeline_usage_tracker.dart';
-
+import 'package:millionaire_trivia/screens/play_screen/readmore_modal.dart';
 import 'game_exit_modal.dart';
 
 class PlayScreen extends StatefulWidget {
@@ -31,6 +32,7 @@ class _PlayScreenState extends State<PlayScreen> {
   List<Question> questions = [];
   int currentStage = 1;
   int currentIndex = 0;
+  int currentEarningIndex = -1;
   bool answered = false;
   String? selectedAnswer;
 
@@ -45,15 +47,13 @@ class _PlayScreenState extends State<PlayScreen> {
     _failurePlayer = AudioPlayer();
     usageTracker = LifelineUsageTracker();
     preloadSounds();
-    loadStageQuestions(isNewGame: true); // ← Initialize as new game
+    loadStageQuestions(isNewGame: true);
   }
 
   Future<void> preloadSounds() async {
     try {
       await _bgAudioPlayer.setReleaseMode(ReleaseMode.loop);
-      await _bgAudioPlayer.setSource(
-        AssetSource('sounds/background_sound.mp3'),
-      );
+      await _bgAudioPlayer.setSource(AssetSource('sounds/background_sound.mp3'));
       await _bgAudioPlayer.resume();
 
       await _successPlayer.setSource(AssetSource('sounds/success_sound.wav'));
@@ -93,10 +93,7 @@ class _PlayScreenState extends State<PlayScreen> {
   }
 
   Future<void> loadStageQuestions({bool isNewGame = false}) async {
-    final stageQuestions = await QuestionsLoader.loadStageQuestions(
-      currentStage,
-    );
-
+    final stageQuestions = await QuestionsLoader.loadStageQuestions(currentStage);
     if (!mounted) return;
 
     setState(() {
@@ -106,7 +103,7 @@ class _PlayScreenState extends State<PlayScreen> {
       selectedAnswer = null;
 
       if (isNewGame || currentStage == 1) {
-        usageTracker.reset(); // ✅ reset all lifeline usage
+        usageTracker.reset();
       }
 
       lifelineManager = LifelineManager(questions[0], usageTracker);
@@ -195,13 +192,48 @@ class _PlayScreenState extends State<PlayScreen> {
 
         if (!mounted) return;
 
-        if (currentIndex < questions.length - 1) {
-          nextQuestion();
-        } else {
+        if (currentEarningIndex < prices.length - 1) {
           setState(() {
-            currentStage++;
+            currentEarningIndex++;
           });
-          loadStageQuestions(); // Next stage, but don't reset lifelines
+        }
+
+        if (currentIndex == questions.length - 1) {
+          await _bgAudioPlayer.stop();
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CongratulationScreen(
+                userName: 'User Name',
+                amountWon: currentEarningIndex >= 0 ? prices[currentEarningIndex] : '\$0',
+              ),
+            ),
+          );
+        } else {
+          showGeneralDialog(
+            context: context,
+            barrierDismissible: true,
+            barrierLabel: 'Explanation Modal',
+            transitionDuration: const Duration(milliseconds: 300),
+            pageBuilder: (_, __, ___) {
+              return ReadMoreModal(
+                correctAnswer: correct,
+                explanation: questions[currentIndex].explanation ?? 'No explanation provided.',
+                onNext: () {
+                  Navigator.pop(context); // Close modal
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PriceList(currentEarningIndex: currentEarningIndex),
+                    ),
+                  );
+                  Future.delayed(const Duration(milliseconds: 700), () {
+                    if (mounted) nextQuestion();
+                  });
+                },
+              );
+            },
+          );
         }
       } else {
         await _bgAudioPlayer.stop();
@@ -253,32 +285,27 @@ class _PlayScreenState extends State<PlayScreen> {
                         color: Colors.black45,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 30,
-                      ),
+                      child: const Icon(Icons.close, color: Colors.white, size: 30),
                     ),
                   ),
                   GestureDetector(
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const PriceList()),
+                        MaterialPageRoute(
+                          builder: (_) => PriceList(currentEarningIndex: currentEarningIndex),
+                        ),
                       );
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
                         color: Colors.black45,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
-                        '\$100 000',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                      child: Text(
+                        currentEarningIndex >= 0 ? prices[currentEarningIndex] : '\$0',
+                        style: const TextStyle(color: Colors.white70, fontSize: 14),
                       ),
                     ),
                   ),
@@ -293,7 +320,6 @@ class _PlayScreenState extends State<PlayScreen> {
               ),
 
               const SizedBox(height: 20),
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -305,8 +331,7 @@ class _PlayScreenState extends State<PlayScreen> {
                   LifelineButton(
                     icon: Icons.question_answer_rounded,
                     used: lifelineManager.used['ask']!,
-                    onTap: () =>
-                        setState(() => lifelineManager.useAskComputer()),
+                    onTap: () => setState(() => lifelineManager.useAskComputer()),
                   ),
                   LifelineButton(
                     icon: Icons.poll_rounded,
@@ -320,7 +345,7 @@ class _PlayScreenState extends State<PlayScreen> {
                       setState(() {
                         lifelineManager.useResetQuestion();
                       });
-                      loadStageQuestions(); // reload question list
+                      loadStageQuestions();
                     },
                   ),
                 ],
@@ -332,22 +357,18 @@ class _PlayScreenState extends State<PlayScreen> {
               ),
 
               const SizedBox(height: 15),
-
               Column(
                 children: List.generate(4, (index) {
                   final label = ['A', 'B', 'C', 'D'][index];
                   final optionText = question.options[index];
-                  final isRemoved = lifelineManager.removedOptionIndices
-                      .contains(index);
+                  final isRemoved = lifelineManager.removedOptionIndices.contains(index);
                   return OptionTile(
                     label: label,
                     text: optionText,
                     screenWidth: screenWidth,
                     onTap: () => checkAnswer(optionText),
                     isSelected: selectedAnswer == optionText,
-                    isCorrect:
-                        optionText.toLowerCase().trim() ==
-                        question.correctAnswer,
+                    isCorrect: optionText.toLowerCase().trim() == question.correctAnswer,
                     answered: answered,
                     disabled: isRemoved,
                   );
