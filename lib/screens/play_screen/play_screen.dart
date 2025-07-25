@@ -1,6 +1,6 @@
-// Import statements...
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:vibration/vibration.dart';
 import 'package:millionaire_trivia/models/question_model.dart';
 import 'package:millionaire_trivia/screens/play_screen/congratulation_screen.dart';
 import 'package:millionaire_trivia/screens/play_screen/price_list.dart';
@@ -81,6 +81,18 @@ class _PlayScreenState extends State<PlayScreen> {
       await _failurePlayer.resume();
     } catch (e) {
       debugPrint('❌ Failed to play failure sound: $e');
+    }
+  }
+
+  Future<void> vibrateSuccess() async {
+    if (await Vibration.hasVibrator() ?? false) {
+      Vibration.vibrate(duration: 150, amplitude: 128);
+    }
+  }
+
+  Future<void> vibrateFailure() async {
+    if (await Vibration.hasVibrator() ?? false) {
+      Vibration.vibrate(pattern: [0, 300, 200, 300], amplitude: 255);
     }
   }
 
@@ -187,6 +199,7 @@ class _PlayScreenState extends State<PlayScreen> {
       final correct = questions[currentIndex].correctAnswer;
 
       if (selectedAnswer == correct) {
+        await vibrateSuccess();
         await playSuccessSound();
         await Future.delayed(const Duration(milliseconds: 700));
 
@@ -220,7 +233,7 @@ class _PlayScreenState extends State<PlayScreen> {
                 correctAnswer: correct,
                 explanation: questions[currentIndex].explanation ?? 'No explanation provided.',
                 onNext: () {
-                  Navigator.pop(context); // Close modal
+                  Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -236,6 +249,7 @@ class _PlayScreenState extends State<PlayScreen> {
           );
         }
       } else {
+        await vibrateFailure();
         await _bgAudioPlayer.stop();
         await playFailureSound();
         _showFailedModal();
@@ -311,7 +325,7 @@ class _PlayScreenState extends State<PlayScreen> {
                   ),
                 ],
               ),
-
+              const SizedBox(height: 25),
               QuestionCard(
                 question: question.question,
                 questionNumber: '${currentIndex + 1}/15',
